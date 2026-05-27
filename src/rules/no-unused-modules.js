@@ -151,7 +151,15 @@ function listFilesToProcess(src, extensions) {
     return listFilesUsingFileEnumerator(FileEnumerator, src, extensions);
   }
   // If not, then we can try even older versions of this capability (listFilesToProcess)
-  return listFilesWithLegacyFunctions(src, extensions);
+  try {
+    return listFilesWithLegacyFunctions(src, extensions);
+  } catch (e) {
+    // If legacy functions are also unavailable (ESLint v10+), use Node.js fs as a fallback
+    if (e.code === 'MODULE_NOT_FOUND' || e.code === 'ERR_PACKAGE_PATH_NOT_EXPORTED') {
+      return listFilesWithNodeFs(src, extensions);
+    }
+    throw e;
+  }
 }
 
 const EXPORT_DEFAULT_DECLARATION = 'ExportDefaultDeclaration';
