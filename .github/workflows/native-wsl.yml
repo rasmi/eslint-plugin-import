@@ -135,8 +135,13 @@ jobs:
       if: matrix.configuration == 'native'
       shell: pwsh
       run: |
+        # Fail the step on any non-zero exit (pwsh only checks the last command).
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $true
         npm run pretest
-        npm run tests-only
+        # nyc's collector crashes on native Windows, so run mocha directly and
+        # report coverage from the istanbul output (tests/_write-coverage.js).
+        npm run tests-only:windows
         $resolverDir = "./resolvers";
         $resolvers = @();
         Get-ChildItem -Directory $resolverDir |
