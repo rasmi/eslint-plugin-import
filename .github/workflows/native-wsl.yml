@@ -19,11 +19,25 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-2022]
-        node-version: [18, 16, 14, 12, 10, 8, 6, 4]
+        node-version: [24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4]
         configuration: [wsl, native]
+        # Native Windows runs the real Node version (setup-node); the modern
+        # toolchain only runs on Node >= 16, so native covers 16+ and WSL covers
+        # the older versions on its Linux-on-Windows runtime.
+        exclude:
+          - { configuration: native, node-version: 14 }
+          - { configuration: native, node-version: 12 }
+          - { configuration: native, node-version: 10 }
+          - { configuration: native, node-version: 8 }
+          - { configuration: native, node-version: 6 }
+          - { configuration: native, node-version: 4 }
 
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      if: matrix.configuration == 'native'
+      with:
+        node-version: ${{ matrix.node-version }}
     - uses: Vampire/setup-wsl@v7
       if: matrix.configuration == 'wsl'
       with:
@@ -82,30 +96,16 @@ jobs:
         npm run pretest
         npm run mocha -- tests/src --timeout "$ESLINT_IMPORT_WSL_TEST_TIMEOUT"
 
-    - name: install dependencies for node <= 10
-      if: matrix.node-version <= '10' && matrix.configuration == 'native'
-      run: |
-        npm install --legacy-peer-deps
-        npm install eslint@7 --no-save
-
-    - name: Install dependencies for node > 10
-      if: matrix.node-version > '10'  && matrix.configuration == 'native'
+    - name: install dependencies
+      if: matrix.configuration == 'native'
       run: npm install
 
     - name: install the latest version of nyc
       if: matrix.configuration == 'native'
       run: npm install nyc@latest --no-save
 
-    - name: copy metafiles for node <= 8
-      if: matrix.node-version <= 8 && matrix.configuration == 'native'
-      env:
-        ESLINT_VERSION: 6
-        TRAVIS_NODE_VERSION: ${{ matrix.node-version }}
-      run: |
-        npm run copy-metafiles
-        bash ./tests/dep-time-travel.sh 2>&1
-    - name: copy metafiles for Node > 8
-      if: matrix.node-version > 8 && matrix.configuration == 'native'
+    - name: copy metafiles
+      if: matrix.configuration == 'native'
       env:
         ESLINT_VERSION: 7
         TRAVIS_NODE_VERSION: ${{ matrix.node-version }}
